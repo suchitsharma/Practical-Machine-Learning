@@ -61,7 +61,7 @@ CM
 Acc <- CM$overall[1]*100
 Acc <- round(Acc, digits = 2)
 ```
-The model has an accuracy of *`r Acc`%* which validates the model.
+The model has an accuracy of **`r Acc`%** which validates the model.
 
 
 ## Out of Sample error rate
@@ -78,7 +78,7 @@ SampleErrorRate
 SampleErrorRate <- round(SampleErrorRate*100, digits = 2)
 
 ```
-The out of sample error rate of the model is *`r SampleErrorRate`%*
+The out of sample error rate of the model is **`r SampleErrorRate`%**
 
 
 ## Conclusion
