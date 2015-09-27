@@ -1,0 +1,97 @@
+---
+title: "Practical Machine Learning Prediction Assignment"
+author: "Suchit Sharma"
+date: "September 21, 2015"
+output: html_document
+---
+
+## Overview 
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. In this report, we will explore data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants and predict the manner in which they did the exercise.. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. We will also use the prediction model to predict 20 different test cases in data provided by [Groupware](http://groupware.les.inf.puc-rio.br/har)
+
+## Loading Data
+```{r, echo=TRUE}
+# Loading needed libraries
+library(caret)
+library(randomForest)
+
+training <- read.csv("pml-training.csv", na.strings = c("", "NA", "NULL"))
+testing  <- read.csv("pml-testing.csv",  na.strings = c("", "NA", "NULL"))
+
+# Removing reference & N/A value columns
+training <- training[, -which(names(training) %in% c('X', 'user_name', 'raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window'))]
+testing <- testing[, -which(names(testing) %in% c('X', 'user_name', 'raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window'))]
+
+training <- training[ , colSums(is.na(training)) == 0]
+testing <- testing[ , colSums(is.na(testing)) == 0]
+```
+
+
+## Cross validation prepration
+Training set is split into two for cross validation, first set for building the model and second set for evaluting accuracy.
+```{r, echo=TRUE}
+#Removing zero covariates from training set
+RZV <- nearZeroVar(training[sapply(training, is.numeric)], saveMetrics = TRUE)
+training = training[,RZV[, 'nzv']==0]
+
+# Splitting training set
+set.seed(20150921)
+setsplit <- createDataPartition(y=training$classe, p=0.60, list=FALSE)
+TrainingSet1  <- training[setsplit,]
+TrainingSet2  <- training[-setsplit,]
+```
+
+
+## Model Build
+The model is based on Random Forest algorthim. Model is built using TrainingSet1 and will be cross validated against TrainingSet2.
+```{r, echo=TRUE}
+Model <- randomForest(classe~., data=TrainingSet1, method='class')
+# This creates a 25.5 MB data set and needs atleast 1 GB of free memory for execution.
+varImpPlot(Model,)
+```
+
+## Cross validation of model
+The model is now tested against TrainingSet2, this set hasn't been manipulated in any way so should give an reliable accurancy estimate.
+```{r, echo=TRUE}
+# Using confusionMatrix to test the accuracy of the model
+pred = predict(Model,TrainingSet2,type='class')
+CM=confusionMatrix(pred,TrainingSet2$classe)
+CM
+```
+```{r, echo=FALSE}
+Acc <- CM$overall[1]*100
+Acc <- round(Acc, digits = 2)
+```
+The model has an accuracy of *`r Acc`%* which validates the model.
+
+
+## Out of Sample error rate
+We need to calculate the out of sample error rate of the model.
+[Function Design from Stackoverflow.com](http://stackoverflow.com/questions/15213260/how-to-fit-a-model-i-built-to-another-data-set-and-get-residuals)
+```{r, echo=TRUE}
+missed <- function(values, predicted) {
+  sum(predicted != values) / length(values)
+}
+SampleErrorRate <- missed(TrainingSet2$classe, pred)
+SampleErrorRate
+```
+```{r, echo=FALSE}
+SampleErrorRate <- round(SampleErrorRate*100, digits = 2)
+
+```
+The out of sample error rate of the model is *`r SampleErrorRate`%*
+
+
+## Conclusion
+Using the model to submit predictions of testing data for Assignment Submission.
+[Function Design from Assignment Submission :  instructions](https://class.coursera.org/predmachlearn-032/assignment/view?assignment_id=5)
+```{r, echo=TRUE}
+answers <- predict(Model, testing)
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(answers)
+```
